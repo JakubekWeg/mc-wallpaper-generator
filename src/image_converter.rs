@@ -1,7 +1,7 @@
 use crate::{ProgramConfig, TerracottaBehaviour};
 use std::fs::DirEntry;
 use std::path::Path;
-use sfml::graphics::{IntRect, Color, Sprite, Image, Texture, RenderTarget, Transformable, RenderStates, RenderTexture};
+use sfml::graphics::{IntRect, Color, Sprite, Image, Texture, RenderTarget, Transformable, RenderStates, RenderTexture, View, FloatRect};
 use sfml::system::{Vector2f, SfBox};
 use crate::random_helper::RandomHelper;
 
@@ -38,7 +38,7 @@ pub fn convert_using_random_method(config: ProgramConfig) {
     let mut randomizer = RandomHelper::new(probabilities);
 
 
-    let render_texture = sfml::graphics::RenderTexture::new(config.image_width, config.image_height, false)
+    let mut render_texture = sfml::graphics::RenderTexture::new(config.image_width, config.image_height, false)
         .expect("Creating render buffer");
 
     let scale_vec = Vector2f::new(config.scale_factor, config.scale_factor);
@@ -64,6 +64,17 @@ pub fn convert_using_random_method(config: ProgramConfig) {
     let size = render_texture.size();
     let iterations_horizontal = size.x / texture_size.x / config.scale_factor as u32 + 1;
     let iterations_vertical = size.y / texture_size.y / config.scale_factor as u32 + 1;
+
+    let rendered_size_x = iterations_horizontal as f32 * texture_size.x as f32 * config.scale_factor;
+    let rendered_size_y = iterations_vertical as f32 * texture_size.y as f32 * config.scale_factor;
+    let view_port = View::from_rect(&FloatRect::new(
+        -(size.x as f32 - rendered_size_x) / 2.,
+        -(size.y as f32 - rendered_size_y) / 2.,
+        size.x as f32,
+        size.y as f32));
+    render_texture.set_view(&view_port);
+
+
     for y in 0..iterations_vertical {
         for x in 0..iterations_horizontal {
             let texture: &SfBox<Texture> = &textures.get(randomizer.next_index()).unwrap();
@@ -206,8 +217,23 @@ fn draw_sprite_and_handle_terracotta(is_terracotta: bool,
                                      sprite: &mut Sprite,
                                      texture: &Texture,
                                      render_texture: &mut RenderTexture) {
+
+    let texture_size = texture.size();
+    let size = render_texture.size();
+    let iterations_horizontal = size.x / texture_size.x / scale_factor as u32 + 1;
+    let iterations_vertical = size.y / texture_size.y / scale_factor as u32 + 1;
+    let mut is_even_y = false;
+
+    let rendered_size_x = iterations_horizontal as f32 * texture_size.x as f32 * scale_factor;
+    let rendered_size_y = iterations_vertical as f32 * texture_size.y as f32 * scale_factor;
+    let view_port = View::from_rect(&FloatRect::new(
+        -(size.x as f32 - rendered_size_x) / 2.,
+        -(size.y as f32 - rendered_size_y) / 2.,
+        size.x as f32,
+        size.y as f32));
+    render_texture.set_view(&view_port);
+
     if is_terracotta {
-        let texture_size = texture.size();
         let tmp_rect = IntRect::new(0, 0, texture_size.x as i32, texture_size.y as i32);
         sprite.set_texture_rect(&tmp_rect);
 
@@ -215,10 +241,7 @@ fn draw_sprite_and_handle_terracotta(is_terracotta: bool,
         sprite.set_origin(origin_vec);
         origin_vec *= scale_factor;
 
-        let size = render_texture.size();
-        let iterations_horizontal = size.x / texture_size.x / scale_factor as u32 + 1;
-        let iterations_vertical = size.y / texture_size.y / scale_factor as u32 + 1;
-        let mut is_even_y = false;
+
         for y in 0..iterations_vertical {
             let mut is_even_x = false;
             for x in 0..iterations_horizontal {
